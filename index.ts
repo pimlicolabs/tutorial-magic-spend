@@ -43,12 +43,10 @@ const pimlicoClient = createPimlicoClient({
 
 
 const sendMagicSpendRequest = async (method: string, params: any[]) => {
-    console.log(`Sending magic spend request: ${method} with params: ${params}`)
-
     const body = {
         jsonrpc: "2.0",
-        method: "pimlico_getMagicSpendContracts",
-        params: [],
+        method,
+        params,
         id: 1,
     };
 
@@ -108,6 +106,11 @@ const main = async () => {
     } = await sendMagicSpendRequest(
         'pimlico_getMagicSpendContracts',
         []
+    )
+
+    console.log(
+        stakeManager,
+        liquidityManager,
     )
 
     const stakes = await sendMagicSpendRequest(
