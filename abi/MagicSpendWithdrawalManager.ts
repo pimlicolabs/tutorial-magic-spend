@@ -1,26 +1,10 @@
-export const MagicSpendLiquidityManagerAbi = [
-    {
-      "type": "constructor",
-      "inputs": [
-        {
-          "name": "_owner",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "_signer",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "stateMutability": "nonpayable"
-    },
+export const MagicSpendWithdrawalManagerAbi = [
     {
       "type": "function",
       "name": "addLiquidity",
       "inputs": [
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "internalType": "address"
         },
@@ -91,12 +75,12 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "function",
-      "name": "getCallStructHash",
+      "name": "getCallHash",
       "inputs": [
         {
           "name": "call",
           "type": "tuple",
-          "internalType": "struct CallStruct",
+          "internalType": "struct Call",
           "components": [
             {
               "name": "to",
@@ -140,15 +124,15 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "function",
-      "name": "getWithdrawRequestHash",
+      "name": "getWithdrawalHash",
       "inputs": [
         {
-          "name": "request",
+          "name": "withdrawal",
           "type": "tuple",
-          "internalType": "struct WithdrawRequest",
+          "internalType": "struct Withdrawal",
           "components": [
             {
-              "name": "asset",
+              "name": "token",
               "type": "address",
               "internalType": "address"
             },
@@ -170,7 +154,7 @@ export const MagicSpendLiquidityManagerAbi = [
             {
               "name": "preCalls",
               "type": "tuple[]",
-              "internalType": "struct CallStruct[]",
+              "internalType": "struct Call[]",
               "components": [
                 {
                   "name": "to",
@@ -192,7 +176,7 @@ export const MagicSpendLiquidityManagerAbi = [
             {
               "name": "postCalls",
               "type": "tuple[]",
-              "internalType": "struct CallStruct[]",
+              "internalType": "struct Call[]",
               "components": [
                 {
                   "name": "to",
@@ -240,6 +224,24 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "function",
+      "name": "initialize",
+      "inputs": [
+        {
+          "name": "_owner",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_signer",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
       "name": "owner",
       "inputs": [],
       "outputs": [
@@ -256,7 +258,7 @@ export const MagicSpendLiquidityManagerAbi = [
       "name": "removeLiquidity",
       "inputs": [
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "internalType": "address"
         },
@@ -313,12 +315,12 @@ export const MagicSpendLiquidityManagerAbi = [
       "name": "withdraw",
       "inputs": [
         {
-          "name": "request",
+          "name": "withdrawal",
           "type": "tuple",
-          "internalType": "struct WithdrawRequest",
+          "internalType": "struct Withdrawal",
           "components": [
             {
-              "name": "asset",
+              "name": "token",
               "type": "address",
               "internalType": "address"
             },
@@ -340,7 +342,7 @@ export const MagicSpendLiquidityManagerAbi = [
             {
               "name": "preCalls",
               "type": "tuple[]",
-              "internalType": "struct CallStruct[]",
+              "internalType": "struct Call[]",
               "components": [
                 {
                   "name": "to",
@@ -362,7 +364,7 @@ export const MagicSpendLiquidityManagerAbi = [
             {
               "name": "postCalls",
               "type": "tuple[]",
-              "internalType": "struct CallStruct[]",
+              "internalType": "struct Call[]",
               "components": [
                 {
                   "name": "to",
@@ -415,10 +417,23 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "event",
+      "name": "Initialized",
+      "inputs": [
+        {
+          "name": "version",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
       "name": "LiquidityAdded",
       "inputs": [
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "indexed": false,
           "internalType": "address"
@@ -437,7 +452,7 @@ export const MagicSpendLiquidityManagerAbi = [
       "name": "LiquidityRemoved",
       "inputs": [
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "indexed": false,
           "internalType": "address"
@@ -472,7 +487,20 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "event",
-      "name": "RequestWithdrawn",
+      "name": "SignerAdded",
+      "inputs": [
+        {
+          "name": "signer",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "WithdrawalExecuted",
       "inputs": [
         {
           "name": "hash_",
@@ -487,7 +515,7 @@ export const MagicSpendLiquidityManagerAbi = [
           "internalType": "address"
         },
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "indexed": true,
           "internalType": "address"
@@ -502,19 +530,6 @@ export const MagicSpendLiquidityManagerAbi = [
       "anonymous": false
     },
     {
-      "type": "event",
-      "name": "SignerAdded",
-      "inputs": [
-        {
-          "name": "signer",
-          "type": "address",
-          "indexed": false,
-          "internalType": "address"
-        }
-      ],
-      "anonymous": false
-    },
-    {
       "type": "error",
       "name": "AlreadyUsed",
       "inputs": []
@@ -524,7 +539,7 @@ export const MagicSpendLiquidityManagerAbi = [
       "name": "InsufficientLiquidity",
       "inputs": [
         {
-          "name": "asset",
+          "name": "token",
           "type": "address",
           "internalType": "address"
         }
@@ -532,7 +547,12 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "error",
-      "name": "InvalidShortString",
+      "name": "InvalidInitialization",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "NotInitializing",
       "inputs": []
     },
     {
@@ -586,34 +606,23 @@ export const MagicSpendLiquidityManagerAbi = [
     },
     {
       "type": "error",
-      "name": "RequestExpired",
-      "inputs": []
-    },
-    {
-      "type": "error",
-      "name": "RequestInvalidChain",
-      "inputs": []
-    },
-    {
-      "type": "error",
-      "name": "RequestNotYetValid",
-      "inputs": []
-    },
-    {
-      "type": "error",
       "name": "SignatureInvalid",
       "inputs": []
     },
     {
       "type": "error",
-      "name": "StringTooLong",
-      "inputs": [
-        {
-          "name": "str",
-          "type": "string",
-          "internalType": "string"
-        }
-      ]
+      "name": "WithdrawalExpired",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "WithdrawalInvalidChain",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "WithdrawalNotYetValid",
+      "inputs": []
     }
-  ]
+  ] as const
   

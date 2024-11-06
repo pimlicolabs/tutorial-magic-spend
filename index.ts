@@ -1,14 +1,15 @@
 import { createSmartAccountClient } from "permissionless"
-import { Address, Hex, createPublicClient, encodeFunctionData, getContract, http, parseEther, toHex } from "viem"
+import { Address, Hex, createPublicClient, encodeFunctionData, getContract, http, parseAbi, parseEther, recoverMessageAddress, toHex } from "viem"
 import { sepolia } from "viem/chains"
 import { privateKeyToAccount } from "viem/accounts"
-import { MagicSpendStakeManagerAbi } from "./abi/MagicSpendStakeManager";
-import { MagicSpendLiquidityManagerAbi } from "./abi/MagicSpendLiquidityManager";
 import { entryPoint07Address } from "viem/account-abstraction";
 import { createPimlicoClient } from "permissionless/clients/pimlico"
 import { toSimpleSmartAccount } from "permissionless/accounts";
+import { MagicSpendStakeManagerAbi } from "./abi/MagicSpendStakeManager";
+import { MagicSpendWithdrawalManagerAbi } from "./abi/MagicSpendWithdrawalManager";
 
 import "dotenv/config"
+import { MagicSpendAllowance, MagicSpendWithdrawal } from "./types";
 
 const RPC_URL = "https://11155111.rpc.thirdweb.com"
 const ETH: Address = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
@@ -101,89 +102,132 @@ const main = async () => {
 
     // Check at least one stake exists
     const {
-        stakeManager,
-        liquidityManager,
+        stakeManagerAddress,
+        withdrawalManagerAddress,
     } = await sendMagicSpendRequest(
         'pimlico_getMagicSpendContracts',
         []
     )
-
-    console.log(
-        stakeManager,
-        liquidityManager,
-    )
-
-    const stakes = await sendMagicSpendRequest(
-        'pimlico_getMagicSpendStakes',
-        [signer.address, ETH]
-    )
-
-    if (stakes.length === 0) {
-        throw new Error("No stakes found")
-    }
-
-    // Prepare claim request
-    const magicSpendRequest = await sendMagicSpendRequest(
-        'pimlico_prepareMagicSpendRequest',
-        [
-            signer.address,
-            ETH,
-            toHex(amount),
-        ]
-    );
-
-    // Sign claim request
     const stakeManagerContract = getContract({
         abi: MagicSpendStakeManagerAbi,
-        address: stakeManager,
+        address: stakeManagerAddress,
         client: publicClient,
     })
 
-    const hash_ = await stakeManagerContract.read.getClaimRequestHash([
-        magicSpendRequest,
+    const stakes = await sendMagicSpendRequest(
+        'pimlico_getMagicSpendStakes',
+        [{
+            account: signer.address,
+            asset: ETH
+        }]
+    )
+    
+    if (stakes.length === 0) {
+        throw new Error("No stakes found")
+    }
+    
+    const allowance = (await sendMagicSpendRequest(
+        'pimlico_prepareMagicSpendAllowance',
+        [{
+            account: signer.address,
+            token: ETH,
+            amount: toHex(amount),
+        }]
+    )) as MagicSpendAllowance;
+    
+    const hash_ = await stakeManagerContract.read.getAllowanceHash([
+        {
+            ...allowance,
+            validAfter: Number(allowance.validAfter),
+            validUntil: Number(allowance.validUntil),
+            salt: Number(allowance.salt),
+        }
     ]) as Hex;
-
-    const magicSpendSignature = await signer.signMessage({
+    
+    const allowanceSignature = await signer.signMessage({
         message: {
             raw: hash_,
         }
     })
 
-    // Submit signed claim request and receive signed withdraw request
-    const [withdrawRequest, withdrawSignature] = await sendMagicSpendRequest(
-        "pimlico_sponsorMagicSpendRequest",
-        [magicSpendRequest, magicSpendSignature, simpleAccount.address]
+    await sendMagicSpendRequest(
+        "pimlico_grantMagicSpendAllowance",
+        [{
+            allowance,
+            signature: allowanceSignature
+        }]
     );
 
-    const magicSpendCallData = await encodeFunctionData({
-        abi: MagicSpendLiquidityManagerAbi,
+    const withdrawalManagerContract = getContract({
+        abi: MagicSpendWithdrawalManagerAbi,
+        address: withdrawalManagerAddress,
+        client: publicClient,
+    })
+    
+    const operatorRequestHash = await withdrawalManagerContract.read.getWithdrawalHash([
+        {
+            token: ETH,
+            amount: BigInt(amount),
+            chainId: BigInt(sepolia.id),
+            recipient: simpleAccount.address,
+            preCalls: [],
+            postCalls: [],
+            validUntil: Number(0),
+            validAfter: Number(0),
+            salt: 0
+        }
+    ]) as Hex;
+    
+    const operatorRequestSignature = await signer.signMessage({
+        message: {
+            raw: operatorRequestHash
+        }
+    })
+    
+    const [wiithdrawal, withdrawalSignature] = await sendMagicSpendRequest(
+        "pimlico_sponsorMagicSpendWithdrawal",
+        [{
+            recipient: simpleAccount.address,
+            token: ETH,
+            amount,
+            salt: 0,
+            signature: operatorRequestSignature
+        }]
+    )
+
+    const magicSpendCallData = encodeFunctionData({
+        abi: MagicSpendWithdrawalManagerAbi,
         functionName: 'withdraw',
         args: [
-            withdrawRequest,
-            withdrawSignature,
+            wiithdrawal,
+            withdrawalSignature,
         ]
     })
-
+    
     // Send user operation and withdraw funds
+    // You can add subsequent calls after the withdrawal, like "buy NFT on OpenSea for ETH"
     const userOpHash = await smartAccountClient.sendUserOperation({
         account: simpleAccount,
         calls: [
             {
-                to: liquidityManager,
+                to: withdrawalManagerAddress,
                 value: parseEther("0"),
                 data: magicSpendCallData,
             }
         ]
     })
-
+    
     console.log(`Userop hash: ${userOpHash}`);
-
+    
     const receipt = await pimlicoClient.waitForUserOperationReceipt({
         hash: userOpHash
     })
-
+    
     console.log(`Transaction hash: ${receipt.receipt.transactionHash}`);
 }
 
 
-main().then(console.log).catch(console.error)
+main()
+    .then(console.log)
+    .catch(console.error)
+    .finally(() => process.exit(0))
